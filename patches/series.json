@@ -1,0 +1,13 @@
+{
+  "$comment": "This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement. See LICENSE.txt in the project root; upstream components retain their applicable licenses.",
+  "patches": [
+    [
+      "a1z-data-collect",
+      "a1z-data-collect-integration.patch"
+    ],
+    [
+      "GalaxeaVLA",
+      "GalaxeaVLA-integration.patch"
+    ]
+  ]
+}

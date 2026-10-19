@@ -1,0 +1,8 @@
+{
+  "$comment": "This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement. See LICENSE.txt in the project root; upstream components retain their applicable licenses.",
+  "a1z-data-collect": "33f44c93ed949c481b1fee81dbd3de3773128624",
+  "GalaxeaVLA": "89f2322b4ad016e192437adc1a2c253b05bab246",
+  "a1z_g05_deploy": "3ff28fcf8c77a68102abdf5fa1bbe73b252b300c",
+  "a1z-data-collect/a1z-t": "93235404adbb5b753da6fd4d62eccc60805cfeaa",
+  "a1z-data-collect/a1z-t/GALAXEA-A1Z": "156af498a947a830ca38efff4dd08fd2da96a200"
+}

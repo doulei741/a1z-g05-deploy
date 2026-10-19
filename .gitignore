@@ -1,0 +1,27 @@
+# This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement.
+# See LICENSE.txt in the project root; upstream components retain their applicable licenses.
+
+.venv*/
+__pycache__/
+.pytest_cache/
+*.pyc
+/data
+/outputs
+/checkpoints
+.env
+.workbuddy/
+
+/logs/
+/migration_fixtures/
+.DS_Store
+
+# Machine-specific deployment settings (never commit SSH/device details).
+/configs/deployment/*.local.json
+
+# Local collection data and unfinished offline conversions.
+*.hdf5
+*.h5
+*.incomplete/
+
+# Local collection device mapping; public YAML files are templates.
+/configs/collect*.local.yaml

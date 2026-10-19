@@ -1,0 +1,816 @@
+# This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement.
+# See LICENSE.txt in the project root; upstream components retain their applicable licenses.
+
+diff --git a/configs/data/a1z.yaml b/configs/data/a1z.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..1afba880f32447e9c4085821e9d58125fdb52b17
+--- /dev/null
++++ b/configs/data/a1z.yaml
+@@ -0,0 +1,25 @@
++# This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement.
++# See LICENSE.txt in the project root; upstream components retain their applicable licenses.
++
++# Dedicated dual A1Z routing. Reuse the explicit 6+1 / 6+1 schema only.
++_target_: g05.data.mixture_lerobot_dataset.MixtureLerobotDataset
++use_weight_normalization: true
++use_weight_for_sampling: false
++action_size: 32
++past_action_size: 0
++obs_size: 1
++obs_stride_second: 0.0
++val_set_proportion: 0.05
++is_training_set: true
++processors:
++  galaxea_a1z: ${oc.load:configs/data/r1lite.yaml,processors.galaxea_r1lite}
++embodiment_datasets:
++  galaxea_a1z:
++    type: g05.data.galaxea_lerobot_dataset.GalaxeaLerobotDataset
++    embodiment_type: galaxea_a1z
++    lerobot_ds_version: '2.1'
++    shape_meta: ${oc.load:configs/data/r1lite.yaml,processors.galaxea_r1lite.shape_meta}
++    dataset_groups:
++    - weight: 1.0
++      dataset_dirs:
++      - ${oc.env:A1Z_DATASET,../data/a1z_v21}
+diff --git a/configs/data/a1z_single_left.yaml b/configs/data/a1z_single_left.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..92d299fc4df37c97e841c68a4a706c6aa7a311cd
+--- /dev/null
++++ b/configs/data/a1z_single_left.yaml
+@@ -0,0 +1,71 @@
++# This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement.
++# See LICENSE.txt in the project root; upstream components retain their applicable licenses.
++
++# LeRobot v2.1: one A1Z left arm (6 joints + gripper) and two RGB cameras.
++_target_: g05.data.mixture_lerobot_dataset.MixtureLerobotDataset
++use_weight_normalization: true
++use_weight_for_sampling: false
++action_size: 32
++past_action_size: 0
++obs_size: 1
++obs_stride_second: 0.0
++val_set_proportion: 0.05
++is_training_set: true
++processors:
++  galaxea_a1z:
++    shape_meta:
++      action:
++      - {key: left_arm, lerobot_key: action.left_arm, start_index: 0, raw_shape: 6, shape: 6, time_offset: 0}
++      - {key: left_gripper, lerobot_key: action.left_gripper, start_index: 0, raw_shape: 1, shape: 1, time_offset: 0}
++      state:
++      - {key: left_arm, lerobot_key: observation.state.left_arm, start_index: 0, raw_shape: 6, shape: 6, time_offset: 0}
++      - {key: left_gripper, lerobot_key: observation.state.left_gripper, start_index: 0, raw_shape: 1, shape: 1, time_offset: 0}
++      images:
++      - key: head_rgb
++        camera_type: exterior
++        lerobot_key: observation.images.head_rgb
++        start_index: 0
++        raw_shape: [3, 480, 640]
++        shape: [3, 224, 224]
++        time_offset: 0
++      - key: left_wrist_rgb
++        camera_type: wrist_left
++        lerobot_key: observation.images.left_wrist_rgb
++        start_index: 0
++        raw_shape: [3, 480, 640]
++        shape: [3, 224, 224]
++        time_offset: 0
++    action_state_transforms:
++    - _target_: g05.data_processor.transforms.relative_action.RelativeJointTransform
++      keys: [left_arm]
++    train_transforms:
++      head_rgb: ${oc.load:configs/data/_transforms.yaml,train_head}
++      left_wrist_rgb: ${oc.load:configs/data/_transforms.yaml,train_wrist}
++    val_transforms:
++      head_rgb: ${oc.load:configs/data/_transforms.yaml,val}
++      left_wrist_rgb: ${oc.load:configs/data/_transforms.yaml,val}
++    norm_default_mode: z-score-tail
++    norm_exception_mode:
++      action: {left_gripper: q01/q99}
++      state: {left_gripper: q01/q99}
++    action_filter:
++      _target_: g05.data_processor.transforms.action_filter.DummyActionFilter
++    action_state_merger:
++      _target_: g05.data_processor.transforms.action_state_merger.PaddingActionMerger
++      merge: true
++      max_action_shape_meta: ${oc.load:configs/data/parts_meta/gripper_wbc.yaml,parts_meta}
++      max_state_shape_meta: ${oc.load:configs/data/parts_meta/gripper_wbc.yaml,parts_meta}
++    num_obs_steps: 1
++    use_stepwise_action_norm: true
++    drop_high_level_prob: 1.0
++    use_zh_instruction: false
++embodiment_datasets:
++  galaxea_a1z:
++    type: g05.data.galaxea_lerobot_dataset.GalaxeaLerobotDataset
++    embodiment_type: galaxea_a1z
++    lerobot_ds_version: '2.1'
++    shape_meta: ${oc.load:configs/data/a1z_single_left.yaml,processors.galaxea_a1z.shape_meta}
++    dataset_groups:
++    - weight: 1.0
++      dataset_dirs:
++      - ${oc.env:A1Z_DATASET}
+diff --git a/configs/task/a1z.yaml b/configs/task/a1z.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..3e488d0dc9d6cbea746501e943513d92e2ba624e
+--- /dev/null
++++ b/configs/task/a1z.yaml
+@@ -0,0 +1,25 @@
++# @package _global_
++# This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement.
++# See LICENSE.txt in the project root; upstream components retain their applicable licenses.
++
++defaults:
++- r1lite
++- override /data: a1z
++- _self_
++
++logger:
++  type: null
++  mode: offline
++tokenizer:
++  vq_config:
++    ckpt_dir: ${oc.env:A1Z_WORKSPACE}/checkpoints/action_tokenizer.pt
++model:
++  pretrained_ckpt: ${oc.env:A1Z_WORKSPACE}/checkpoints/g05-base/checkpoints/model_state_dict.pt
++  batch_size: 2
++  num_workers: 4
++  max_epochs: null
++  max_steps: 10000
++  use_pretrained_norm_stats: false
++  model_arch:
++    hf_processor_path: ${oc.env:A1Z_WORKSPACE}/checkpoints/qwen3_5_2b_base_processor
++batch_size_val: 2
+diff --git a/configs/task/a1z_lora.yaml b/configs/task/a1z_lora.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..305e8f678efaea5a0e67c8c4f07de5a9241c9764
+--- /dev/null
++++ b/configs/task/a1z_lora.yaml
+@@ -0,0 +1,31 @@
++# @package _global_
++# This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement.
++# See LICENSE.txt in the project root; upstream components retain their applicable licenses.
++
++defaults:
++- a1z
++- _self_
++
++model:
++  max_epochs: null
++  batch_size: 1
++  num_workers: 2
++  grad_accumulation_steps: 8
++  model_weights_to_bf16: true
++  enable_bf16_training: true
++  use_ema: false
++  use_torch_compile: false
++  learning_rate: 0.0001
++  find_unused_parameters: true
++  model_arch:
++    checkpoint_vision: false
++    checkpoint_vlm: true
++    checkpoint_action_expert: true
++    fm:
++      num_flow_samples: 1
++    lora:
++      enabled: true
++      rank: 8
++      alpha: 16
++      targets: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
++batch_size_val: 1
+diff --git a/configs/task/a1z_single_left_full.yaml b/configs/task/a1z_single_left_full.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..8b0cdcd224b95ac17621d769163b60e5ca57ec82
+--- /dev/null
++++ b/configs/task/a1z_single_left_full.yaml
+@@ -0,0 +1,28 @@
++# @package _global_
++# This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement.
++# See LICENSE.txt in the project root; upstream components retain their applicable licenses.
++
++defaults:
++- a1z
++- override /data: a1z_single_left
++- _self_
++
++# Full fine-tuning from the pretrained G0.5 checkpoint.
++model:
++  batch_size: 2
++  num_workers: 4
++  learning_rate: 4.0e-05
++  warmup_steps: 200
++  max_epochs: null
++  max_steps: 30000
++  processor:
++    num_input_cameras: 2
++    num_output_cameras: 2
++    camera_size_config:
++      exterior: [256, 256]
++      wrist_left: [256, 256]
++  model_arch:
++    lora:
++      enabled: false
++    vla_training_strategy: vla-full-train
++batch_size_val: 2
+diff --git a/configs/task/a1z_single_left_lora.yaml b/configs/task/a1z_single_left_lora.yaml
+new file mode 100644
+index 0000000000000000000000000000000000000000..fe83048e8a7b724a03594359c82a3260fa0a33fb
+--- /dev/null
++++ b/configs/task/a1z_single_left_lora.yaml
+@@ -0,0 +1,12 @@
++# @package _global_
++# This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement.
++# See LICENSE.txt in the project root; upstream components retain their applicable licenses.
++
++defaults:
++- a1z_lora
++- override /data: a1z_single_left
++- _self_
++model:
++  processor:
++    num_output_cameras: 2
++    num_input_cameras: 2
+diff --git a/scripts/finetune.py b/scripts/finetune.py
+index 408dd1d772f67e04605128293527dae53ecdd741..76a7b3424d0cb1e281fb2c13116e4b99429ac33a 100644
+--- a/scripts/finetune.py
++++ b/scripts/finetune.py
+@@ -568,6 +568,7 @@ def finetune(cfg: DictConfig):
+             extra_prefixes=["normalizer."],
+             eval_mode=False,
+             return_full_checkpoint=True,
++            load_config={"allow_missing_lora": not bool(cfg.resume_ckpt)},
+         )
+     else:
+         model: BasePolicy = instantiate(cfg.model.model_arch)
+@@ -806,7 +807,7 @@ def finetune(cfg: DictConfig):
+         action_collate_fn = None
+ 
+     dl_num_workers = cfg.model.num_workers
+-    dl_prefetch_factor = cfg.model.get("prefetch_factor", 2)
++    dl_prefetch_factor = cfg.model.get("prefetch_factor", 2) if dl_num_workers > 0 else None
+ 
+     train_dataloader = DataLoader(
+         train_dataset,
+@@ -815,7 +816,7 @@ def finetune(cfg: DictConfig):
+         shuffle=False,
+         num_workers=dl_num_workers,
+         pin_memory=cfg.model.pin_memory,
+-        persistent_workers=cfg.model.persistent_workers,
++        persistent_workers=bool(cfg.model.persistent_workers and dl_num_workers > 0),
+         worker_init_fn=worker_init_fn,
+         collate_fn=action_collate_fn,
+         prefetch_factor=dl_prefetch_factor,
+@@ -827,7 +828,7 @@ def finetune(cfg: DictConfig):
+         shuffle=False,
+         num_workers=dl_num_workers,
+         pin_memory=cfg.model.pin_memory,
+-        persistent_workers=cfg.model.persistent_workers,
++        persistent_workers=bool(cfg.model.persistent_workers and dl_num_workers > 0),
+         worker_init_fn=worker_init_fn,
+         collate_fn=action_collate_fn,
+         prefetch_factor=dl_prefetch_factor,
+@@ -1325,6 +1326,19 @@ def finetune(cfg: DictConfig):
+ 
+             epoch += 1
+ 
++    if accelerator.is_main_process:
++        import json as _json
++        _model = unwrap_model(model)
++        _report = {
++            "step": int(step),
++            "trainable_parameters": sum(p.numel() for p in _model.parameters() if p.requires_grad),
++            "total_parameters": sum(p.numel() for p in _model.parameters()),
++            "peak_allocated_gib": torch.cuda.max_memory_allocated() / 2**30,
++            "peak_reserved_gib": torch.cuda.max_memory_reserved() / 2**30,
++        }
++        (Path(output_dir) / "training_resources.json").write_text(_json.dumps(_report, indent=2) + "\n")
++        logger.info(f"Training resources: {_report}")
++
+     # Final checkpoint (inference-only: no optimizer/scheduler state)
+     if not _dry_run and accelerator.is_main_process:
+         logger.info(f"Saving model checkpoint for step {step} ...")
+diff --git a/scripts/serve_policy.py b/scripts/serve_policy.py
+index b36b62f45c2caf4fb079365dfc10236d90eedddc..1cbe6f58055afc0b1466bfa4b1eea3fbcb9d91e9 100644
+--- a/scripts/serve_policy.py
++++ b/scripts/serve_policy.py
+@@ -95,6 +95,8 @@ def setup(cfg, device: str = "cuda"):
+         cfg.ckpt_path,
+         device=device,
+         extra_prefixes=["normalizer."],
++        load_config={"preserve_checkpoint_dtype": True},
++        use_meta_device=True,  # Load checkpoint weights without a second full FP32 copy.
+         eval_mode=False,  # Defer until after bf16 conversion and fp32_params.
+     )
+ 
+@@ -259,6 +261,37 @@ def _validate_obs(raw_obs: dict, processor) -> None:
+ # ──────── obs -> preprocess input construction ────────
+ 
+ 
++def validated_history(raw_obs, processor, count):
++    """Opt-in one-second history for the audited six-observation checkpoint.
++
++    Existing single-frame clients retain their old behavior. This does not
++    silently change control clients or invent historical sensor values.
++    """
++    frames = raw_obs.get('observation_history')
++    if frames is None:
++        return None
++    if count != 6 or not isinstance(frames, list) or len(frames) != count:
++        raise ValueError('History diagnostic requires exactly six observations')
++    offsets = np.asarray(raw_obs.get('history_offsets_s', []), dtype=float)
++    if offsets.shape != (count,) or not np.isfinite(offsets).all():
++        raise ValueError('Invalid history timestamps')
++    if not np.allclose(offsets, np.arange(-5, 1), atol=.15, rtol=0):
++        raise ValueError('Expected one-second history spacing, oldest first')
++    for frame in frames:
++        _validate_obs(dict(raw_obs, images=frame['images'], state=frame['state']), processor)
++        for group in ('images', 'state'):
++            for key, value in frame[group].items():
++                if not np.isfinite(value).all():
++                    raise ValueError('Non-finite history: ' + key)
++                if value.shape != raw_obs[group][key].shape:
++                    raise ValueError('History shape mismatch: ' + key)
++    for group in ('images', 'state'):
++        for key, value in raw_obs[group].items():
++            if not np.array_equal(frames[-1][group][key], value):
++                raise ValueError('History last frame must equal current observation')
++    return frames
++
++
+ def build_obs_dict(raw_obs: dict, processor) -> dict:
+     """Build the processor.preprocess input from client raw observations.
+ 
+@@ -267,10 +300,12 @@ def build_obs_dict(raw_obs: dict, processor) -> dict:
+     transforms. The time dimension is filled with dummy actions for num_obs_steps
+     only so the merger can produce action_dim_is_pad.
+     """
++    raw_obs = checkpoint_observation(raw_obs, processor)
+     _validate_obs(raw_obs, processor)
+ 
+     p = resolve_processor(processor, raw_obs)
+     num_obs_steps = p.num_obs_steps
++    history = validated_history(raw_obs, processor, num_obs_steps)
+     action_horizon = getattr(p, "action_horizon", num_obs_steps)
+ 
+     # Keep only keys defined in shape_meta, matching dataset.__getitem__ behavior.
+@@ -305,6 +340,11 @@ def build_obs_dict(raw_obs: dict, processor) -> dict:
+     }
+     if "coarse_task" in raw_obs:
+         data["coarse_task"] = raw_obs["coarse_task"]
++    if history is not None:
++        data['images'] = {k: torch.from_numpy(np.stack([f['images'][k] for f in history]))
++                          for k in expected_img_keys}
++        data['state'] = {k: torch.from_numpy(np.stack([f['state'][k] for f in history])).float()
++                         for k in expected_state_keys}
+     if "plan" in raw_obs:
+         data["plan"] = raw_obs["plan"]
+     frequency = raw_obs.get("frequency", 15)
+@@ -362,17 +402,16 @@ class ChunkedPolicyWrapper:
+             actions = await asyncio.to_thread(self.inferencer.infer, [obs_dict])
+             action = actions[0]
+             self._cot_text = action.pop("_cot_text", None)
+-            # Drop keys the AR head did not confidently predict. The protocol
+-            # returns only predicted keys; each client fills/holds missing keys
+-            # itself (it knows its own expected key set). Generalizes beyond
+-            # gripper to any absent action part.
++            # Only AR-selected outputs carry these raw-key omissions. FM
++            # outputs must not be filtered using the separate AR prediction.
+             absent_keys = action.pop("_absent_keys", set())
+-            for key in absent_keys:
+-                action.pop(key, None)
+-            if absent_keys:
++            dropped_keys = set(absent_keys).intersection(action)
++            for key in dropped_keys:
++                del action[key]
++            if dropped_keys:
+                 logger.warning(
+                     "Dropped absent action keys %s (emb=%s); client must handle missing keys.",
+-                    sorted(absent_keys),
++                    sorted(dropped_keys),
+                     raw_obs.get("embodiment_type", "?"),
+                 )
+             self._cached_chunk = dict_apply(
+@@ -400,6 +439,41 @@ class ChunkedPolicyWrapper:
+         self._chunk_step = 0
+ 
+ 
++def summarize_chunk(chunk):
++    """Read-only diagnostic of the same inference; never changes serving index."""
++    summary = {}
++    for key in ('left_arm', 'right_arm', 'left_gripper', 'right_gripper'):
++        if key not in chunk:
++            continue
++        arr = np.asarray(chunk[key])
++        if arr.ndim != 2 or not np.isfinite(arr).all():
++            raise ValueError('Invalid diagnostic chunk: ' + key)
++        summary[key] = {
++            'shape': list(arr.shape),
++            'steps': {str(i): arr[i].tolist() for i in sorted({0, 8, 16, 31, len(arr)-1}) if 0 <= i < len(arr)},
++        }
++    return summary
++
++
++def build_handshake(processor, action_steps):
++    """Expose raw wire dimensions, not padded model/grouped dimensions."""
++    def shape_meta(p):
++        return {"action": [
++            {"key": str(m["key"]), "raw_shape": int(m["raw_shape"])}
++            for m in p.shape_meta["action"]
++        ]}
++
++    metadata = {"action_steps": action_steps}
++    if isinstance(processor, MixtureProcessor):
++        by_embodiment = {str(k): shape_meta(p) for k, p in processor.processors.items()}
++        metadata["shape_meta_by_embodiment"] = by_embodiment
++        if len(by_embodiment) == 1:
++            metadata["shape_meta"] = next(iter(by_embodiment.values()))
++    else:
++        metadata["shape_meta"] = shape_meta(processor)
++    return metadata
++
++
+ async def handler(ws, inferencer, processor, action_steps=16):
+     """Handle a single WebSocket connection.
+ 
+@@ -409,7 +483,7 @@ async def handler(ws, inferencer, processor, action_steps=16):
+     client = ws.remote_address
+     logger.info(f"Client connected: {client} (action_steps={action_steps})")
+ 
+-    await ws.send(packb({"action_steps": action_steps}))
++    await ws.send(packb(build_handshake(processor, action_steps)))
+     policy = ChunkedPolicyWrapper(inferencer, processor, action_steps=action_steps)
+ 
+     try:
+@@ -423,6 +497,8 @@ async def handler(ws, inferencer, processor, action_steps=16):
+                     continue
+                 action, cot_text = await policy.get_action(raw_obs)
+                 resp = {"action": action, "need_obs": policy.need_obs}
++                if raw_obs.get('__diagnostic_chunk__') is True:
++                    resp['diagnostic_chunk'] = summarize_chunk(policy._cached_chunk)
+                 if cot_text is not None:
+                     resp["cot_text"] = cot_text
+                 await ws.send(packb(resp))
+@@ -470,6 +546,36 @@ async def serve(
+ # ──────── main ────────
+ 
+ 
++def checkpoint_embodiment(cfg, requested):
++    """Resolve the public A1Z name without relabeling checkpoint statistics."""
++    datasets = cfg.data.get("embodiment_datasets", {})
++    available = {str(item.embodiment_type) for item in datasets.values()}
++    if requested == "galaxea_a1z" and requested not in available:
++        # The pinned public base checkpoint stores this legacy key in its stats.
++        if "galaxea_r1lite" in available:
++            return "galaxea_r1lite"
++    return requested
++
++
++def expose_a1z_processor(processor, requested, selected):
++    """Add the public alias only after normalization has loaded under its old key."""
++    if requested == "galaxea_a1z" and selected == "galaxea_r1lite":
++        if not isinstance(processor, MixtureProcessor):
++            raise ValueError("The legacy A1Z base profile requires a mixture processor")
++        if "galaxea_a1z" in processor.processors:
++            raise ValueError("Refusing to replace an existing A1Z processor")
++        processor.processors["galaxea_a1z"] = processor.processors[selected]
++        processor._a1z_checkpoint_embodiment = selected
++
++
++def checkpoint_observation(raw_obs, processor):
++    """Keep the base model's internal identity while exposing A1Z on the wire."""
++    selected = getattr(processor, "_a1z_checkpoint_embodiment", None)
++    if selected and raw_obs.get("embodiment_type") == "galaxea_a1z":
++        return dict(raw_obs, embodiment_type=selected)
++    return raw_obs
++
++
+ def main():
+     parser = argparse.ArgumentParser(
+         description="WebSocket policy server (training-inference consistent)"
+@@ -497,8 +603,9 @@ def main():
+ 
+     # Support eval_embodiment=<embodiment_type> filtering to a single embodiment_type.
+     eval_embodiment = cfg.get("eval_embodiment", None)
+-    if eval_embodiment and "embodiment_datasets" in cfg.data:
+-        filter_embodiment(cfg, eval_embodiment)
++    selected_embodiment = checkpoint_embodiment(cfg, eval_embodiment)
++    if selected_embodiment and "embodiment_datasets" in cfg.data:
++        filter_embodiment(cfg, selected_embodiment)
+ 
+     # Use the unified Rich format from overwatch to avoid basicConfig behavior
+     # depending on import-time side effects.
+@@ -511,6 +618,7 @@ def main():
+     print_banner(subtitle="Policy Server")
+ 
+     policy, processor = setup(cfg, device=args.device)
++    expose_a1z_processor(processor, eval_embodiment, selected_embodiment)
+     logger.info("Model and processor loaded on %s.", args.device)
+ 
+     asyncio.run(
+diff --git a/src/g05/data/galaxea_lerobot_dataset.py b/src/g05/data/galaxea_lerobot_dataset.py
+index e688f97bffe03a9c125c2f6c2c2d7fa5e40d4171..3b9fdc3a1bd4f977bfe4672930d12d8ab16f9ec9 100644
+--- a/src/g05/data/galaxea_lerobot_dataset.py
++++ b/src/g05/data/galaxea_lerobot_dataset.py
+@@ -170,7 +170,7 @@ class GalaxeaLerobotDataset(BaseLerobotDatasetV3):
+             return self._end_idx - self._start_idx
+ 
+     def _get_additional_data(self, sample, lerobot_sample):
+-        sample["coarse_task"] = lerobot_sample["coarse_task"]
++        sample["coarse_task"] = lerobot_sample.get("coarse_task", lerobot_sample["task"])
+         return sample
+ 
+     def __getitem__(self, idx):
+diff --git a/src/g05/data/lerobot/lerobot_dataset.py b/src/g05/data/lerobot/lerobot_dataset.py
+index 7d44cdaad58c978975ce3b6e504503b3b1a50fde..bf9ea04714663c817d764616f32134606ac6a8b2 100644
+--- a/src/g05/data/lerobot/lerobot_dataset.py
++++ b/src/g05/data/lerobot/lerobot_dataset.py
+@@ -826,7 +826,10 @@ class LeRobotDataset(torch.utils.data.Dataset):
+                 item[cam] = self.image_transforms(item[cam])
+ 
+         # Add task as a string
+-        task_idx = item["task_index"].item()
++        task_index_tensor = item["task_index"].reshape(-1)
++        if not torch.all(task_index_tensor == task_index_tensor[0]):
++            raise ValueError("task_index changes within one temporal query window")
++        task_idx = task_index_tensor[0].item()
+         item["task"] = self.meta.tasks[task_idx]
+         if "coarse_task_index" in item:
+             coarse_task_index = item["coarse_task_index"].item()
+diff --git a/src/g05/models/g05/g05_policy.py b/src/g05/models/g05/g05_policy.py
+index fe1c2b2767ed8bb7f095fe3f4b17403f2481b20f..8f976e71a9e536bbd9547dcd5b8a2201c05e2db3 100644
+--- a/src/g05/models/g05/g05_policy.py
++++ b/src/g05/models/g05/g05_policy.py
+@@ -308,6 +308,12 @@ class G05Policy(BasePolicy):
+         if _bar_rows:
+             log_box(logger, "🔧  BAR Config", _bar_rows)
+ 
++        lora_cfg = model_cfg.get("lora", {})
++        if lora_cfg.get("enabled", False):
++            from .lora import configure_lora
++            self.lora_modules = configure_lora(self, lora_cfg)
++            logger.info(f"LoRA enabled on {len(self.lora_modules)} projections; base parameters frozen")
++
+     def _get_runtime_action_token_config(self) -> Dict[str, Any]:
+         token_configs = getattr(self.processor, "token_configs", None)
+         if isinstance(token_configs, dict):
+@@ -903,6 +909,7 @@ class G05Policy(BasePolicy):
+             )
+             _sync_if_cuda_available()
+             timing["fm_action_ms"] = (time.monotonic() - t_fm0) * 1000.0
++            results["action_source"] = "fm"
+ 
+         # AR action (discrete)
+         if self.discrete_action:
+@@ -972,6 +979,7 @@ class G05Policy(BasePolicy):
+             results["decoded_action_tokens"] = decoded_tokens
+             if "action" not in results:
+                 results["action"] = results["ar_action"]
++                results["action_source"] = "ar"
+ 
+             if action_gt is not None:
+                 results.update(
+diff --git a/src/g05/models/g05/g05_policy_qwen35.py b/src/g05/models/g05/g05_policy_qwen35.py
+index 8a0288838245f93150dc7998bd9ed240632bc8b8..081539e7c26daf32fd26986be7da98d12979a121 100644
+--- a/src/g05/models/g05/g05_policy_qwen35.py
++++ b/src/g05/models/g05/g05_policy_qwen35.py
+@@ -38,6 +38,7 @@ class G05PolicyQwen35(G05Policy):
+     @property
+     def fp32_param_patterns(self) -> List[str]:
+         return [
++            "lora_A", "lora_B",
+             # vision embeddings (Qwen3.5 Conv3D + position embedding)
+             "vision_tower.patch_embed.proj.weight",
+             "vision_tower.patch_embed.proj.bias",
+@@ -154,7 +155,7 @@ class G05PolicyQwen35(G05Policy):
+             + [_t(*camera_size_config["wrist_left"])]
+             + [_t(*camera_size_config["wrist_right"])]
+         )
+-        return per_camera * cfg.num_obs_steps
++        return per_camera[:n_cams] * cfg.num_obs_steps
+ 
+     def estimate_training_flops_per_sample(self) -> int:
+         """Qwen3.5 FLOPs: ViT uses pre-merge patches, no external projector, hybrid attention."""
+diff --git a/src/g05/models/g05/helpers/ar_helper.py b/src/g05/models/g05/helpers/ar_helper.py
+index 70d9d7d01f914338bab84209df31d2de96cf4b31..6370013a8e2d715e5fa1d28b8b74254381cb4a2b 100644
+--- a/src/g05/models/g05/helpers/ar_helper.py
++++ b/src/g05/models/g05/helpers/ar_helper.py
+@@ -222,6 +222,9 @@ class ARHelper:
+ 
+         shift_labels_masked = shift_labels[mask]
+         shift_hidden_masked = shift_hidden.flatten(0, 1)[mask]
++        # Final norms can emit fp32 even for BF16 weights. Autocast is disabled
++        # here, so both fused and eager linear CE need an explicit dtype match.
++        shift_hidden_masked = shift_hidden_masked.to(model.vlm.output_proj.weight.dtype)
+ 
+         # Dual path: FLCE saves memory; eager keeps logits for log-step metrics.
+         # MetricsCollector.on_forward_start sets _need_full_logits=True before log
+diff --git a/src/g05/models/g05/inferencer.py b/src/g05/models/g05/inferencer.py
+index 7430aceb68a81d2ace1c43dda9c56918a2e400c8..8d0bedc100becef6c974af58dae71bc91c005da1 100644
+--- a/src/g05/models/g05/inferencer.py
++++ b/src/g05/models/g05/inferencer.py
+@@ -7,6 +7,7 @@ from __future__ import annotations
+ 
+ import dataclasses
+ import logging
++import threading
+ import time
+ from typing import Any
+ 
+@@ -53,6 +54,10 @@ class PolicyInferencer:
+         self.policy = policy
+         self.processor = processor
+         self.device = device
++        # WebSocket connections dispatch inference via asyncio.to_thread.
++        # The shared processor/model (including CUDA graphs and mutable caches)
++        # is not reentrant; serialize the complete inference transaction.
++        self._inference_lock = threading.Lock()
+ 
+     # ──────── Public API ────────
+ 
+@@ -66,6 +71,11 @@ class PolicyInferencer:
+ 
+         Returns ``(results, {"preprocess_ms", "infer_ms", "postprocess_ms"})``.
+         """
++        with self._inference_lock:
++            return self._infer_with_timing_locked(obs_dicts)
++
++    def _infer_with_timing_locked(self, obs_dicts: list[dict]) -> tuple[list[dict], dict[str, float]]:
++        """Caller holds _inference_lock until postprocessing is complete."""
+         if not obs_dicts:
+             return [], {"preprocess_ms": 0.0, "infer_ms": 0.0, "postprocess_ms": 0.0}
+ 
+@@ -159,12 +169,27 @@ class PolicyInferencer:
+         if "action_op_mask" in batch:
+             item_batch["action_op_mask"] = batch["action_op_mask"][index : index + 1]
+         action = sub_processor.postprocess(item_batch)["action"]
+-        ar_absent_keys = batch.get("ar_absent_keys")
++        # AR omissions describe only the discrete prediction, never the FM
++        # tensor selected as the final action when both heads are enabled.
++        ar_absent_keys = (
++            batch.get("ar_absent_keys") if batch.get("action_source", "ar") == "ar" else None
++        )
+         absent = (
+             ar_absent_keys[index]
+             if ar_absent_keys is not None and index < len(ar_absent_keys)
+             else set()
+         )
+         if absent:
+-            action["_absent_keys"] = absent
++            # AR uses grouped names (left_control); postprocess restores raw
++            # embodiment keys (left_arm / left_ee_pose). Map before filtering.
++            merger = getattr(sub_processor, "action_state_merger", None)
++            merge_spec = getattr(merger, "merge_spec", None) or {}
++            raw_absent = {
++                raw_key
++                for key in absent
++                for raw_key in merge_spec.get(key, [key])
++                if raw_key in action
++            }
++            if raw_absent:
++                action["_absent_keys"] = raw_absent
+         return action
+diff --git a/src/g05/models/g05/lora.py b/src/g05/models/g05/lora.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..96797ebe895043498dbfd117512b2158df4e047f
+--- /dev/null
++++ b/src/g05/models/g05/lora.py
+@@ -0,0 +1,64 @@
++# This file is part of G05_A1Z, licensed under the Galaxea Dynamics A1Z License Agreement.
++# See LICENSE.txt in the project root; upstream components retain their applicable licenses.
++
++"""LoRA for G05 Linear projections, retaining upstream base checkpoint key names.
++
++Checkpoints contain base weights plus adapters. They are not PEFT adapter-only
++exports. Configured policies recreate the adapters before checkpoint loading.
++"""
++import math
++import torch
++from torch import nn
++from torch.nn import functional as F
++
++
++class LoRALinear(nn.Linear):
++    def __init__(self, base, rank, alpha):
++        nn.Module.__init__(self)
++        self.in_features, self.out_features = base.in_features, base.out_features
++        self.weight, self.bias = base.weight, base.bias
++        self.scaling = float(alpha) / rank
++        self.lora_A = nn.Parameter(torch.empty(rank, base.in_features,
++                                             device=base.weight.device, dtype=torch.float32))
++        self.lora_B = nn.Parameter(torch.zeros(base.out_features, rank,
++                                             device=base.weight.device, dtype=torch.float32))
++        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
++
++    def forward(self, x):
++        base = F.linear(x, self.weight, self.bias)
++        delta = F.linear(F.linear(x.to(self.lora_A.dtype), self.lora_A), self.lora_B)
++        return base + delta.to(base.dtype) * self.scaling
++
++
++def configure_lora(policy, config):
++    rank = int(config.get('rank', 8))
++    alpha = float(config.get('alpha', 16))
++    if rank < 1 or not math.isfinite(alpha) or alpha <= 0:
++        raise ValueError('LoRA rank and alpha must be positive')
++    targets = set(config.get('targets', ['q_proj', 'k_proj', 'v_proj', 'o_proj',
++                                         'gate_proj', 'up_proj', 'down_proj']))
++    modules = [(name, module) for name, module in policy.named_modules()
++               if name.startswith(('model.vlm.', 'model.action_expert.'))
++               and name.rsplit('.', 1)[-1] in targets and type(module) is nn.Linear]
++    if not modules:
++        raise ValueError('No G05 LoRA target Linear modules matched')
++    policy.requires_grad_(False)
++    for name, module in modules:
++        parent, leaf = name.rsplit('.', 1)
++        setattr(policy.get_submodule(parent), leaf, LoRALinear(module, rank, alpha))
++    return [name for name, _ in modules]
++
++
++def validate_lora_checkpoint(model, state_dict, allow_base=False):
++    expected = {k for k in model.state_dict() if k.endswith(('.lora_A', '.lora_B'))}
++    supplied = {k for k in state_dict if k.endswith(('.lora_A', '.lora_B'))}
++    if not expected and not supplied:
++        return
++    if allow_base and expected and not supplied:
++        return
++    if expected != supplied:
++        raise ValueError('LoRA checkpoint/config mismatch: use its saved .hydra/config.yaml; '
++                         'only initial training may initialize adapters from a base checkpoint')
++    for key in expected:
++        if model.state_dict()[key].shape != state_dict[key].shape:
++            raise ValueError('LoRA checkpoint rank mismatch: ' + key)
+diff --git a/src/g05/utils/checkpoint/checkpoint_utils.py b/src/g05/utils/checkpoint/checkpoint_utils.py
+index 652ec36c22f23b51c3cd4cd60576b218cd3c0ca1..a60660fa27b4e990663fde7b2c41bbb59bb41d0c 100644
+--- a/src/g05/utils/checkpoint/checkpoint_utils.py
++++ b/src/g05/utils/checkpoint/checkpoint_utils.py
+@@ -469,9 +469,13 @@ def load_state_dict_safely(
+     # it runs. Reproduce the old assign=False copy_into semantics by casting checkpoint
+     # tensors to the dtype expected by the model; meta param dtype is defined at
+     # instantiation time and defaults to fp32 for nn.Module.
+-    for k in list(update_dict.keys()):
+-        if k in local_state and update_dict[k].dtype != local_state[k].dtype:
+-            update_dict[k] = update_dict[k].to(local_state[k].dtype)
++    # Inference-only exports already use the final mixed precision layout. Keep
++    # their dtypes on the meta-device path to avoid expanding BF16 weights back
++    # to FP32 on a 24 GB GPU. Training keeps the original FP32 alignment.
++    if not load_config.get("preserve_checkpoint_dtype", False):
++        for k in list(update_dict.keys()):
++            if k in local_state and update_dict[k].dtype != local_state[k].dtype:
++                update_dict[k] = update_dict[k].to(local_state[k].dtype)
+ 
+     msg = model.load_state_dict(update_dict, strict=False, assign=has_meta)
+     # Ensure lm_head weights are shared with embed_tokens for old/new model structures.
+@@ -638,6 +642,9 @@ def load_model_from_checkpoint(
+         if token_row_remap is not None:
+             load_config["token_row_remap"] = token_row_remap
+ 
++    from g05.models.g05.lora import validate_lora_checkpoint
++    validate_lora_checkpoint(model, state_dict,
++                             allow_base=load_config.get("allow_missing_lora", False))
+     load_state_dict_safely(
+         model,
+         state_dict,
+diff --git a/src/g05/utils/checkpoint/ckpt_utils.py b/src/g05/utils/checkpoint/ckpt_utils.py
+index f2c6a908c2fd3e9cb17f3f97caf5d240ace2056d..36959769a2da2d5c48896224d0134e488419ada7 100644
+--- a/src/g05/utils/checkpoint/ckpt_utils.py
++++ b/src/g05/utils/checkpoint/ckpt_utils.py
+@@ -94,6 +94,13 @@ def _apply_action_tokenizer_sidecar(cfg: DictConfig, run_dir: Path) -> bool:
+     if not local_at.exists():
+         return False
+ 
++    # Nested OmegaConf.update on an interpolation alias can replace the alias
++    # with a partial dict and silently lose _target_ / tokenizer architecture.
++    for parent_key, leaf in (("model", "tokenizer"), ("model.model_arch", "AT_CONFIG")):
++        parent = OmegaConf.select(cfg, parent_key)
++        if parent is not None and leaf in parent and OmegaConf.is_interpolation(parent, leaf):
++            resolved = OmegaConf.to_container(parent[leaf], resolve=False)
++            OmegaConf.update(cfg, parent_key + "." + leaf, resolved, merge=False)
+     patched = False
+     for key in (
+         "tokenizer.vq_config.ckpt_dir",
+@@ -191,11 +198,12 @@ def load_config_from_run_dir(run_dir: Path, ckpt_path: str, overrides: list[str]
+     # register_default_resolvers already handles oc.load, eval, split, etc.
+     # We only need to add Hydra built-ins (now, oc.env) that aren't in register_default_resolvers.
+     _register_hydra_builtin_resolvers()
++    if overrides:
++        cfg = OmegaConf.merge(cfg, OmegaConf.from_dotlist(overrides))
+     cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=True))
+     OmegaConf.set_struct(cfg, False)
+ 
+     if overrides:
+-        cfg = OmegaConf.merge(cfg, OmegaConf.from_dotlist(overrides))
+         logger.info(f"{_GREEN}⚙️  Applied {len(overrides)} override(s): {overrides}{_RESET}")
+ 
+     logger.info(f"{_GREEN}✅ Config loaded successfully{_RESET}")
+diff --git a/src/g05/utils/training/train_utils.py b/src/g05/utils/training/train_utils.py
+index 59ec1159ce7e341da0de87b4dff606a505bf202d..4cea753e1d422d55412e58f8c75f250944f8e6f3 100644
+--- a/src/g05/utils/training/train_utils.py
++++ b/src/g05/utils/training/train_utils.py
+@@ -655,7 +655,7 @@ def init_experiment_tracker(cfg: DictConfig, accelerator: Accelerator, output_di
+     Returns:
+         tracker_type: Type of tracker initialized ('swanlab', 'wandb', or 'none')
+     """
+-    tracker_type = cfg.logger.type.lower()
++    tracker_type = (cfg.logger.type or "none").lower()
+ 
+     if tracker_type == "none":
+         logger.info("Logger disabled (type=none)")
