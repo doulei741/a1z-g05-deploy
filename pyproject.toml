@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "a1z-g05-runtime"
+version = "0.1.0"
+description = "Standalone, versioned G0.5 inference runtime for A1Z"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26,<3", "pydantic>=2.8,<3", "msgpack>=1,<2", "websockets>=14,<17", "PyYAML>=6,<7"]
+license = {file = "LICENSE.txt"}
+
+[project.scripts]
+g05-runtime = "g05_runtime.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["g05_runtime*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/runtime"]

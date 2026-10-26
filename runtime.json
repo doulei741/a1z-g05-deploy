@@ -1,0 +1,9 @@
+{
+  "name": "G0.5 standalone runtime foundation",
+  "experiment": "baseline",
+  "supported_engines": ["baseline"],
+  "requires_model_rtc": false,
+  "hardware_contract": "absolute_arm_rad_gripper_opening",
+  "fps": 30,
+  "prediction_horizon": 32
+}
