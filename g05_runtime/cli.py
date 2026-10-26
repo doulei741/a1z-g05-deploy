@@ -222,6 +222,8 @@ def run(cfg,execute=False,stub=False):
                  'targets':executor.count if executor else 0,'predictions':executor.cycles if executor else 0}
         (folder/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
         journal.close()
+        from .report import summarize
+        (folder/'metrics.json').write_text(json.dumps(summarize(folder),indent=2,ensure_ascii=False)+'\n')
         for s,handler in previous.items():
             signal.signal(s,handler)
         event('finished',**summary,folder=str(folder))
