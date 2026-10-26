@@ -106,7 +106,8 @@ class ModelProcess:
         env.pop('ALL_PROXY',None);env.pop('all_proxy',None)
         self.log=(self.folder/'server.log').open('w')
         self.process=subprocess.Popen([str(self.cfg.model_python),'-m','g05_runtime.server','--config',str(self.config_path),
-                                       '--port',str(port)],cwd=ROOT,env=env,stdout=self.log,stderr=subprocess.STDOUT,start_new_session=True)
+                                       '--port',str(port)],cwd=self.cfg.model_source or ROOT/'GalaxeaVLA',env=env,
+                                      stdout=self.log,stderr=subprocess.STDOUT,start_new_session=True)
         from websockets.sync.client import connect
         deadline=time.monotonic()+300
         try:
