@@ -17,10 +17,12 @@ def summarize(folder):
     rows=[json.loads(line) for line in (folder/'events.jsonl').read_text().splitlines()]
     targets=[r for r in rows if r['type']=='target'];predictions=[r for r in rows if r['type']=='prediction']
     times=[r['monotonic_s'] for r in targets]
+    smoothing=[r['tick_s'] for r in rows if r['type']=='smoothing_tick']
     return {'summary':json.loads((folder/'summary.json').read_text()),
             'provenance':next(r for r in rows if r['type']=='provenance'),
             'request_ms':describe([r['request_s']*1000 for r in predictions]),
             'target_interval_ms':describe(np.diff(times)*1000),
+            'smoothing_interval_ms':describe(np.diff(smoothing)*1000),
             'schedule_lateness_ms':describe([(r['monotonic_s']-r['scheduled_s'])*1000 for r in targets if r.get('scheduled_s') is not None]),
             'raw_joint_delta_rad':describe([float(np.max(np.abs(np.asarray(b['target'])[[*range(6),*range(7,13)]]-np.asarray(a['target'])[[*range(6),*range(7,13)]]))) for a,b in zip(targets,targets[1:])]),
             'buffer_exhaustions':sum(r['type']=='buffer_exhausted' for r in rows),

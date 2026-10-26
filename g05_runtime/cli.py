@@ -178,14 +178,24 @@ def run(cfg,execute=False,stub=False):
             model_context=nullcontext(None) if stub else ModelProcess(cfg,config_path,folder,stop)
             with model_context as model:
                 predict=StubPredictor(stop) if stub else Predictor(model.url,cfg,stop)
+                warm_latency=None
                 if not stub:
                     # Cold start happens against recorded observations before energizing devices.
                     sample=Replay(cfg);warm=predict(sample.observe())
                     validate_chunk(warm['actions'])
+                    if cfg.engine=='rtc':
+                        # Warm the guided path before energizing hardware and
+                        # budget its measured cost, not the faster FM-only path.
+                        for _ in range(2):
+                            started=time.monotonic()
+                            warm=predict(sample.observe(),prefix=warm['actions'][-16:],delay_steps=8)
+                            validate_chunk(warm['actions'])
+                            warm_latency=time.monotonic()-started
+                        journal.emit('rtc_warmup',request_s=warm_latency,hardware_connected=False)
                     event('offline_check_passed',hardware_connected=False)
                 if execute:
                     from .hardware import A1ZHardware
-                    hardware=A1ZHardware(cfg)
+                    hardware=A1ZHardware(cfg,journal=journal)
                 else:
                     hardware=Replay(cfg,stub=stub)
                 try:
@@ -193,6 +203,8 @@ def run(cfg,execute=False,stub=False):
                     event('ready',hardware_connected=execute)
                     print('G0.5 rollout connected' if execute else 'G0.5 recorded RGB/state check passed',flush=True)
                     executor=make_executor(cfg,hardware,predict,journal,stop)
+                    if warm_latency is not None:
+                        executor.latencies=[warm_latency]
                     executor.run()
                 finally:
                     # Hold before shutting down model, journal or cameras.

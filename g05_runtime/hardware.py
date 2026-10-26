@@ -46,8 +46,8 @@ def rgb_device(camera):
 
 
 class A1ZHardware:
-    def __init__(self,cfg):
-        self.cfg=cfg;self.robot=None
+    def __init__(self,cfg,journal=None):
+        self.cfg=cfg;self.robot=None;self.journal=journal
 
     def open(self):
         if not self.cfg.safety_confirmed or self.cfg.hardware is None:
@@ -65,6 +65,9 @@ class A1ZHardware:
         official=official_client();official.validate_smoothing_config(settings)
         self.robot=official.Hardware(settings,execute=True)
         self.robot.open()
+        if self.journal is not None and self.robot.streamer is not None:
+            self.robot.streamer.telemetry_sink=lambda stamp,positions:self.journal.emit(
+                'smoothing_tick',tick_s=stamp,smoothed_joint_target=np.concatenate(positions).tolist())
 
     def observe(self):
         return {'images':self.robot.images(),'state':self.robot.state(),'task':self.cfg.task,

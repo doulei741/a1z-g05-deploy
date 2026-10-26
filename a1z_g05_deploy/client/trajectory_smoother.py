@@ -156,6 +156,9 @@ class DualArmCommandStreamer:
             BoundedJointInterpolator(joints, max_velocity, max_acceleration,
                                      response_time) for joints in initial
         )
+        # Modified by doulei741, 2026-10-27: optional nonblocking telemetry.
+        # Runtime supplies a bounded queue sink; no UI/disk work is done here.
+        self.telemetry_sink = None
         self.period = 1.0 / float(frequency)
         self.stale_timeout = float(stale_timeout)
         self.lock = threading.Lock()
@@ -209,6 +212,8 @@ class DualArmCommandStreamer:
                     if not arm.command_joint_pos(position):
                         raise RuntimeError(f"SDK refused target: {arm.get_fault_status()}")
                 self.ticks += 1
+                if self.telemetry_sink is not None:
+                    self.telemetry_sink(now, positions)
                 deadline += self.period
                 lateness = time.monotonic() - deadline
                 self.max_lateness = max(self.max_lateness, lateness)
