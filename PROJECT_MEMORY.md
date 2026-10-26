@@ -42,3 +42,9 @@ Do not activate old cloud-training automations, resume training, replace 30000/3
 50000 weights, or start cameras/CAN/motors from development tasks. Preserve first
 target checks, finite-value/layout checks, bounded smoothing, SDK fault handling,
 and stopping both arms. Never increase motion limits to conceal inference pauses.
+
+## 当前实验分支 async
+
+方案②：完整块异步推理、按观测时刻对齐、quintic软过渡；夹爪不做加权平均。不是论文RTC。
+
+实现与验证入口见 docs/experiment.md，方案测试状态由主产品experiments/g05/status.json追踪。

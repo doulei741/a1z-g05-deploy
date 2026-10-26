@@ -1,7 +1,7 @@
 {
-  "name": "G0.5 standalone runtime foundation",
-  "experiment": "baseline",
-  "supported_engines": ["baseline"],
+  "name": "G0.5 scheme 2: aligned asynchronous overlap transition",
+  "experiment": "async",
+  "supported_engines": ["baseline", "async"],
   "requires_model_rtc": false,
   "hardware_contract": "absolute_arm_rad_gripper_opening",
   "fps": 30,

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "engine": "async",
+  "bundle": "./my-inference-bundle",
+  "model_python": "./model-env/bin/python",
+  "output_root": "./runs",
+  "task": "Fold the pink towel three times into a neat rectangle on the table, aligning the edges after each fold.",
+  "duration": 600,
+  "model": {
+    "action_head": "fm",
+    "action_steps": 32,
+    "fm_steps": 10
+  },
+  "hardware": {
+    "left_can": "SELECT_LEFT_CAN",
+    "right_can": "SELECT_RIGHT_CAN",
+    "cameras": {
+      "top_rgb": {
+        "type": "opencv",
+        "index_or_path": "/dev/v4l/by-id/SELECT_HEAD_RGB"
+      },
+      "left_wrist_rgb": {
+        "type": "realsense",
+        "serial": "SELECT_LEFT_RGB_SERIAL"
+      },
+      "right_wrist_rgb": {
+        "type": "realsense",
+        "serial": "SELECT_RIGHT_RGB_SERIAL"
+      }
+    }
+  }
+}
