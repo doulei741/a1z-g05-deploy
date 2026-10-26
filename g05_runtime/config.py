@@ -56,7 +56,7 @@ class Execution(StrictModel):
     transition_steps: int = Field(default=4, ge=2, le=12, strict=True)
     latency_margin_s: float = Field(default=.05, ge=0, le=.3)
     max_control_lateness_s: float = Field(default=.1, gt=0, le=.25)
-    rtc_guidance_weight: float = Field(default=5, gt=0, le=10)
+    rtc_guidance_weight: float = Field(default=1, gt=0, le=10)
     rtc_soft_steps: int = Field(default=4, ge=0, le=16, strict=True)
 
 

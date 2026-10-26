@@ -52,6 +52,7 @@ def validate_chunk(values,horizon=32,tolerance=.02):
     if values.shape!=(horizon,14) or not np.isfinite(values).all():
         raise ValueError(f'Expected finite ({horizon},14) chunk; got {values.shape}')
     if np.any(values[:,GRIPPERS]<-tolerance) or np.any(values[:,GRIPPERS]>1+tolerance):
-        raise ValueError('Gripper output outside normalized boundary tolerance')
+        raise ValueError(f'Gripper output outside normalized boundary tolerance: '
+                         f'min={values[:,GRIPPERS].min():.6f}, max={values[:,GRIPPERS].max():.6f}, tolerance={tolerance}')
     result=values.copy();result[:,GRIPPERS]=np.clip(result[:,GRIPPERS],0,1)
     return result
