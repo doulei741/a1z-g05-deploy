@@ -1,8 +1,8 @@
 {
-  "name": "G0.5 standalone runtime foundation",
-  "experiment": "baseline",
-  "supported_engines": ["baseline"],
-  "requires_model_rtc": false,
+  "name": "G0.5 scheme 1: asynchronous inference-time RTC",
+  "experiment": "rtc",
+  "supported_engines": ["baseline", "rtc"],
+  "requires_model_rtc": true,
   "hardware_contract": "absolute_arm_rad_gripper_opening",
   "fps": 30,
   "prediction_horizon": 32

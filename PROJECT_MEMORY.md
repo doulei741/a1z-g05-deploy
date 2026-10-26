@@ -42,3 +42,9 @@ Do not activate old cloud-training automations, resume training, replace 30000/3
 50000 weights, or start cameras/CAN/motors from development tasks. Preserve first
 target checks, finite-value/layout checks, bounded smoothing, SDK fault handling,
 and stopping both arms. Never increase motion limits to conceal inference pauses.
+
+## 当前实验分支 rtc
+
+方案①：异步执行与FM采样期RTC；完整VJP、已承诺前缀投影、软后缀引导。模型依赖固定RTC分支提交。
+
+实现与验证入口见 docs/experiment.md，方案测试状态由主产品experiments/g05/status.json追踪。
