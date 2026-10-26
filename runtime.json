@@ -1,7 +1,7 @@
 {
-  "name": "G0.5 standalone runtime foundation",
-  "experiment": "baseline",
-  "supported_engines": ["baseline"],
+  "name": "G0.5 scheme 3: complete-chunk synchronous fixed playback",
+  "experiment": "sync-fast",
+  "supported_engines": ["baseline", "sync-fast"],
   "requires_model_rtc": false,
   "hardware_contract": "absolute_arm_rad_gripper_opening",
   "fps": 30,
