@@ -7,4 +7,4 @@
 	branch = main
 [submodule "GalaxeaVLA"]
 	path = GalaxeaVLA
-	url = https://github.com/OpenGalaxea/GalaxeaVLA.git
+	url = https://github.com/doulei741/GalaxeaVLA.git
