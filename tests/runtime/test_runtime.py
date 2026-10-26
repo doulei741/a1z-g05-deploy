@@ -102,3 +102,31 @@ def test_plan_refuses_out_of_time_access():
     p=Plan(np.zeros((32,14)),10,0,0)
     with pytest.raises(RuntimeError):p.at(9)
     with pytest.raises(RuntimeError):p.at(42)
+
+
+def test_model_does_not_outlive_its_controller(tmp_path):
+    import os
+    import subprocess
+    import sys
+    ready=tmp_path/'child-ready'
+    child_code="from g05_runtime.process_guard import bind_parent; import os,sys,time; from pathlib import Path; bind_parent(int(sys.argv[1])); Path(sys.argv[2]).write_text('ready'); time.sleep(60)"
+    parent_code="""import os,subprocess,sys,time
+from pathlib import Path
+p=subprocess.Popen([sys.executable,'-c',sys.argv[1],str(os.getpid()),sys.argv[2]],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+deadline=time.monotonic()+5
+while not Path(sys.argv[2]).exists() and time.monotonic()<deadline: time.sleep(.01)
+assert Path(sys.argv[2]).exists()
+print(p.pid,flush=True)
+"""
+    result=subprocess.run([sys.executable,'-c',parent_code,child_code,str(ready)],capture_output=True,text=True,timeout=8,check=True)
+    pid=int(result.stdout.strip());deadline=time.monotonic()+3
+    while time.monotonic()<deadline:
+        try:
+            state=Path(f'/proc/{pid}/stat').read_text().rsplit(')',1)[1].split()[0]
+        except FileNotFoundError:
+            return
+        if state=='Z': return
+        time.sleep(.01)
+    # Only our child is cleaned up if the guard regresses.
+    os.kill(pid,9)
+    pytest.fail('Model child remained alive after controller exit')

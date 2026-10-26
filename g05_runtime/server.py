@@ -76,7 +76,11 @@ async def serve(cfg,port):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config',type=Path,required=True);parser.add_argument('--port',type=int,required=True)
-    args=parser.parse_args();cfg=RunConfig.model_validate_json(args.config.read_text()).resolve(args.config.parent)
+    parser.add_argument('--parent-pid',type=int,required=True)
+    args=parser.parse_args()
+    from .process_guard import bind_parent
+    bind_parent(args.parent_pid)
+    cfg=RunConfig.model_validate_json(args.config.read_text()).resolve(args.config.parent)
     asyncio.run(serve(cfg,args.port))
 
 
