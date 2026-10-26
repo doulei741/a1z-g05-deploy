@@ -101,7 +101,8 @@ class ModelProcess:
         env=dict(os.environ)
         env.update(PYTHONPATH=os.pathsep.join([str(ROOT),str((self.cfg.model_source or ROOT/'GalaxeaVLA')/'src')]),
                    PYTHONUNBUFFERED='1',HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1',TOKENIZERS_PARALLELISM='false',
-                   NO_PROXY='127.0.0.1,localhost')
+                   NO_PROXY='127.0.0.1,localhost',A1Z_WORKSPACE=str(ROOT),
+                   A1Z_DATASET=str(ROOT/'data'),G05_OUTPUT_DIR=str(ROOT/'outputs'))
         env.pop('ALL_PROXY',None);env.pop('all_proxy',None)
         self.log=(self.folder/'server.log').open('w')
         self.process=subprocess.Popen([str(self.cfg.model_python),'-m','g05_runtime.server','--config',str(self.config_path),

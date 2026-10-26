@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import importlib.util
+import json
 import random
 import sys
 import time
@@ -21,9 +22,9 @@ def load_model(cfg):
     import torch
     random.seed(cfg.seed);np.random.seed(cfg.seed);torch.manual_seed(cfg.seed)
     checkpoint=cfg.bundle/'model.pt'
-    processor=str(cfg.bundle/'hf_processor');tokenizer=str(cfg.bundle/'action_tokenizer.pt')
+    processor=json.dumps(str(cfg.bundle/'hf_processor'));tokenizer=json.dumps(str(cfg.bundle/'action_tokenizer.pt'))
     overrides=cfg.model.overrides()+[
-        'eval_embodiment=galaxea_a1z',f'datastatics_path={str(cfg.bundle/"dataset_stats.json")}',
+        'eval_embodiment=galaxea_a1z',f'datastatics_path={json.dumps(str(cfg.bundle/"dataset_stats.json"))}',
         f'model.model_arch.hf_processor_path={processor}',
         f'model.processor.tokenizer_params.pretrained_model_name_or_path={processor}',
         f'tokenizer.vq_config.ckpt_dir={tokenizer}',f'model.tokenizer.vq_config.ckpt_dir={tokenizer}',
