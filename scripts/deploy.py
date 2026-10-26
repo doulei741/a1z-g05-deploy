@@ -47,8 +47,13 @@ def command(cfg, path, execute=False, observe=False, record_dir=None,
         if int(cfg.get('max_cycles', 0)) < 0:
             raise ValueError('max_cycles must be nonnegative')
         smoothing = cfg.get('smoothing', {})
+        enforce_step = cfg.get('enforce_joint_step', True)
+        if not isinstance(enforce_step, bool):
+            raise ValueError('enforce_joint_step must be a boolean')
         if not isinstance(smoothing, dict):
             raise ValueError('smoothing must be an object')
+        if not enforce_step and not smoothing.get('enabled', False):
+            raise ValueError('Disabling consecutive target checks requires bounded smoothing')
         if smoothing.get('enabled', False):
             limits = {'frequency': 250, 'max_velocity': 7,
                       'max_acceleration': 20, 'response_time': None,

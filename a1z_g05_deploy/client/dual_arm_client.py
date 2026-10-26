@@ -109,8 +109,13 @@ def validate_handshake(meta):
 
 def validate_smoothing_config(cfg):
     smoothing = cfg.get("smoothing", {})
+    enforce_step = cfg.get("enforce_joint_step", True)
+    if not isinstance(enforce_step, bool):
+        raise ValueError("enforce_joint_step must be a boolean")
     if not isinstance(smoothing, dict):
         raise ValueError("smoothing must be an object")
+    if not enforce_step and not smoothing.get("enabled", False):
+        raise ValueError("Disabling consecutive target checks requires bounded smoothing")
     if not smoothing.get("enabled", False):
         return
     limits = {"frequency": 250, "max_velocity": 7,
@@ -126,6 +131,37 @@ def validate_smoothing_config(cfg):
             raise ValueError(f"invalid smoothing.{name}: {value}")
     if float(smoothing["stale_timeout"]) <= 0.6:
         raise ValueError("smoothing.stale_timeout must exceed 0.6s")
+
+
+def open_rgb_camera(device, image_size, frequency):
+    """Open Linux RGB capture with bounded retries, before starting any arm."""
+    import cv2
+
+    detail = "capture not opened"
+    for attempt in range(1, 4):
+        cap = None
+        try:
+            cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
+            if not cap.isOpened():
+                raise RuntimeError("V4L2 capture not opened")
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, image_size[0])
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, image_size[1])
+            cap.set(cv2.CAP_PROP_FPS, frequency)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            ok, frame = cap.read()
+            expected = (image_size[1], image_size[0], 3)
+            if not ok or frame is None or frame.shape != expected:
+                raise RuntimeError(f"RGB read failed: expected {expected}, got {getattr(frame, 'shape', None)}")
+            print(f"Camera {device} ready: {expected[1]}x{expected[0]} RGB (attempt {attempt}/3)", flush=True)
+            return cap
+        except Exception as exc:
+            detail = str(exc)
+            if cap is not None:
+                cap.release()
+            print(f"Camera {device} attempt {attempt}/3 failed: {detail}", flush=True)
+            if attempt < 3:
+                time.sleep(0.5)
+    raise RuntimeError(f"Cannot open RGB camera {device} after 3 attempts: {detail}")
 
 
 class Hardware:
@@ -146,14 +182,8 @@ class Hardware:
             raise ValueError("Set three distinct camera devices in the local PC config")
         try:
             for name, device in zip(CAMERAS, devices):
-                cap = cv2.VideoCapture(device)
+                cap = open_rgb_camera(device, self.cfg["image_size"], self.cfg["control_frequency"])
                 self.cameras[name] = cap
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.cfg["image_size"][0])
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.cfg["image_size"][1])
-                cap.set(cv2.CAP_PROP_FPS, self.cfg["control_frequency"])
-                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                if not cap.isOpened():
-                    raise RuntimeError(f"Cannot open {name}: {device}")
             self.images()  # Fail before energizing arms if a camera is missing.
             for channel in (self.cfg["left_can"], self.cfg["right_can"]):
                 arm = get_a1z_robot(can_channel=channel, with_gripper=True, zero_gravity_mode=False)
@@ -175,6 +205,8 @@ class Hardware:
                     stale_timeout=float(smoothing["stale_timeout"]),
                 )
                 self.streamer.start()
+                if not self.cfg.get("enforce_joint_step", True):
+                    print("Consecutive raw joint-target step rejection disabled; initial-position check and bounded smoothing remain active.", flush=True)
         except BaseException:
             self.close()
             raise
@@ -196,10 +228,13 @@ class Hardware:
         return {"left_arm": left[:6], "left_gripper": left[6:7], "right_arm": right[:6], "right_gripper": right[6:7]}
 
     def send(self, action):
+        enforce_step = self.cfg.get("enforce_joint_step", True)
+        if not enforce_step and self.streamer is None:
+            raise RuntimeError("Bounded smoothing is required when consecutive target checks are disabled")
         max_step = (self.cfg.get("max_initial_joint_step", self.cfg["max_joint_step"])
                     if not self.action_sent else self.cfg["max_joint_step"])
         targets = validate_action(
-            action, self.previous, float(max_step),
+            action, self.previous if not self.action_sent or enforce_step else None, float(max_step),
             self.cfg.get("gripper_boundary_tolerance", DEFAULT_GRIPPER_BOUNDARY_TOLERANCE),
         )
         for arm in self.arms:
